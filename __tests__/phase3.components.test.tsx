@@ -627,11 +627,22 @@ describe('<NoteCreateSheet />', () => {
 // ===========================================================================
 // 8. HomeScreen
 // ===========================================================================
+// Updated for the Phase 6 redesign:
+//   - note count subtitle removed → FAB / RecordButton are the canonical smoke
+//     test anchors (both have stable testIDs that survive layout changes)
+//   - Empty state is now in the "RECENT NOTES" section (no testID on the View)
+//     so we assert on the empty state text string directly
+//   - Card FlatList testID changed from "home-card-list" → "home-notes-list"
+//   - Dot indicator testID unchanged ("home-dot-indicator"), but now appears
+//     when allNotes.length > 1 rather than todayNotes.length > 1
 
 describe('<HomeScreen />', () => {
   function renderHomeScreen(notes: Note[] = []) {
-    // Seed the store with the provided notes
+    // Seed notes store with the provided notes
     useNotesStore.setState({ notes });
+    // Reset todos store so progress card stats start at 0
+    const { useTodoStore } = require('../store/todoStore');
+    useTodoStore.setState({ todos: [] });
 
     const navigation = makeMockNavigation() as any;
     const route = { key: 'HomeScreen', name: 'HomeScreen', params: undefined } as any;
@@ -641,36 +652,28 @@ describe('<HomeScreen />', () => {
 
   it('renders without crashing', () => {
     renderHomeScreen();
-    // The safe area container should be present
-    expect(screen.getByTestId('home-note-count')).toBeTruthy();
+    // FAB is always rendered regardless of data state — stable smoke-test anchor
+    expect(screen.getByTestId('home-fab')).toBeTruthy();
   });
 
-  it('shows empty state when there are no notes today', () => {
+  it('shows empty state text when there are no notes', () => {
     renderHomeScreen([]);
-    expect(screen.getByTestId('home-empty-state')).toBeTruthy();
+    // The Recent Notes section renders an empty hint when notes array is empty
+    expect(screen.getByText('No notes yet — tap + to create one')).toBeTruthy();
   });
 
-  it('shows "No notes yet today" text when empty', () => {
+  it('shows the progress card with zero counts when todos are empty', () => {
     renderHomeScreen([]);
-    expect(screen.getByText('No notes yet today')).toBeTruthy();
+    // Progress label is always visible
+    expect(screen.getByText('TODAY\'S PROGRESS')).toBeTruthy();
+    expect(screen.getByText('0 / 0 done')).toBeTruthy();
   });
 
-  it('shows note count when there are notes today', () => {
-    const todayNote = createNote({ id: 'n1', title: 'Today note', body: '', tag: 'work' });
-    renderHomeScreen([todayNote]);
-
-    // Count label should say "1 note today"
-    expect(screen.getByTestId('home-note-count')).toBeTruthy();
-    expect(screen.getByText('1 note today')).toBeTruthy();
-  });
-
-  it('pluralises the note count correctly for multiple notes', () => {
-    const notes = [
-      createNote({ id: 'n1', title: 'Note 1', body: '', tag: 'work' }),
-      createNote({ id: 'n2', title: 'Note 2', body: '', tag: 'ideas' }),
-    ];
-    renderHomeScreen(notes);
-    expect(screen.getByText('2 notes today')).toBeTruthy();
+  it('shows note cards when notes exist', () => {
+    const note = createNote({ id: 'note-abc', title: 'Visible note', body: 'body', tag: 'work' });
+    renderHomeScreen([note]);
+    // Recent notes FlatList has testID "home-notes-list"
+    expect(screen.getByTestId('home-notes-list')).toBeTruthy();
   });
 
   it('renders the FAB', () => {
@@ -686,15 +689,7 @@ describe('<HomeScreen />', () => {
   it('tapping the FAB shows the create sheet', () => {
     renderHomeScreen();
     fireEvent.press(screen.getByTestId('home-fab'));
-    // After FAB press, the sheet should be visible
     expect(screen.getByTestId('note-create-sheet')).toBeTruthy();
-  });
-
-  it('shows note cards when notes exist', () => {
-    const todayNote = createNote({ id: 'note-abc', title: 'Visible note', body: 'body', tag: 'work' });
-    renderHomeScreen([todayNote]);
-    // The FlatList card should be visible
-    expect(screen.getByTestId('home-card-list')).toBeTruthy();
   });
 
   it('shows dot indicators when more than 1 note exists', () => {
@@ -710,6 +705,11 @@ describe('<HomeScreen />', () => {
     const note = createNote({ id: 'n1', title: 'Solo note', body: '', tag: 'work' });
     renderHomeScreen([note]);
     expect(screen.queryByTestId('home-dot-indicator')).toBeNull();
+  });
+
+  it('shows "All caught up" when there are no active todos', () => {
+    renderHomeScreen([]);
+    expect(screen.getByText('All caught up ✓')).toBeTruthy();
   });
 });
 

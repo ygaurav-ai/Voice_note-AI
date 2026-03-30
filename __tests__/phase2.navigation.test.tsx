@@ -234,10 +234,10 @@ describe('TodoIcon', () => {
 // ---------------------------------------------------------------------------
 
 describe('HomeScreen (Phase 3 implementation)', () => {
-  it('renders the home note-count element on the Home tab', () => {
+  it('renders the home FAB on the Home tab', () => {
     render(withProviders(<AppNavigator />));
-    // home-note-count is the subtitle line present on the full HomeScreen
-    expect(screen.getByTestId('home-note-count')).toBeTruthy();
+    // home-fab is always present on the redesigned HomeScreen (Phase 6 layout)
+    expect(screen.getByTestId('home-fab')).toBeTruthy();
   });
 
   it('renders the Home FAB on the Home tab', () => {
@@ -344,7 +344,7 @@ describe('Tab navigation flow', () => {
     render(withProviders(<AppNavigator />));
 
     // Start on Home (default) — verify with home-specific element
-    expect(screen.getByTestId('home-note-count')).toBeTruthy();
+    expect(screen.getByTestId('home-fab')).toBeTruthy();
 
     // Navigate to Notes — verify with notes-specific element
     fireEvent.press(screen.getByTestId('tab-notes'));
@@ -367,7 +367,7 @@ describe('Tab navigation flow', () => {
     render(withProviders(<AppNavigator />));
     fireEvent.press(screen.getByTestId('tab-todo'));
     fireEvent.press(screen.getByTestId('tab-home'));
-    expect(screen.getByTestId('home-note-count')).toBeTruthy();
+    expect(screen.getByTestId('home-fab')).toBeTruthy();
   });
 });
 
@@ -387,8 +387,8 @@ describe('App — full render smoke test', () => {
 
   it('renders the Home screen on launch', () => {
     render(<App />);
-    // home-note-count is the canonical element on the Phase 3 HomeScreen
-    expect(screen.getByTestId('home-note-count')).toBeTruthy();
+    // home-fab is always rendered on the redesigned HomeScreen (Phase 6 layout)
+    expect(screen.getByTestId('home-fab')).toBeTruthy();
   });
 
   it('all three tab buttons are present in the full App', () => {
