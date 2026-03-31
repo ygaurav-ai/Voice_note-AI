@@ -83,11 +83,18 @@ jest.mock('react-native-reanimated', () => {
   const AnimatedView = (props: any) => React.createElement(View, props);
   return {
     __esModule: true,
-    default: { View: AnimatedView },
+    default: { View: AnimatedView, createAnimatedComponent: (c: any) => c },
+    createAnimatedComponent: (c: any) => c,
     useSharedValue: (initial: any) => ({ value: initial }),
     useAnimatedStyle: (_fn: () => any) => ({}),
     withTiming: (value: any) => value,
     withSpring: (value: any) => value,
+    // Phase 7 additions — needed by the new RecordButton component
+    withRepeat: (value: any) => value,
+    withSequence: (...args: any[]) => args[args.length - 1],
+    cancelAnimation: jest.fn(),
+    runOnJS: (fn: any) => fn,
+    Easing: { inOut: (e: any) => e, ease: 0, linear: 0 },
   };
 });
 
@@ -184,22 +191,22 @@ describe('<RecordButton />', () => {
     expect(btn).toBeTruthy();
   });
 
-  it('calls onPress when provided and tapped', () => {
-    const onPress = jest.fn();
-    render(<RecordButton testID="test-record" onPress={onPress} />);
-    fireEvent.press(screen.getByTestId('test-record'));
-    expect(onPress).toHaveBeenCalledTimes(1);
+  it('calls onPressIn when provided and press starts', () => {
+    const onPressIn = jest.fn();
+    render(<RecordButton testID="test-record" onPressIn={onPressIn} />);
+    fireEvent(screen.getByTestId('test-record'), 'pressIn');
+    expect(onPressIn).toHaveBeenCalledTimes(1);
   });
 
-  it('does not throw when pressed without an onPress handler', () => {
+  it('does not throw when pressed without handlers', () => {
     render(<RecordButton testID="test-record" />);
     expect(() => fireEvent.press(screen.getByTestId('test-record'))).not.toThrow();
   });
 
-  it('has correct accessibility label', () => {
+  it('has correct accessibility label in idle state', () => {
     render(<RecordButton testID="test-record" />);
     const btn = screen.getByTestId('test-record');
-    expect(btn.props.accessibilityLabel).toBe('Record voice memo (coming soon)');
+    expect(btn.props.accessibilityLabel).toBe('Record voice note');
   });
 
   it('triggers press-in animation without throwing', () => {

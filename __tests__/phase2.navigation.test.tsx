@@ -42,6 +42,17 @@ jest.mock('react-native-mmkv', () => ({
   }),
 }));
 
+// Mock expo-speech-recognition — required by useVoiceRecorder (Phase 7) which is
+// now imported by all three screens; no native binary in Jest.
+jest.mock('expo-speech-recognition', () => ({
+  ExpoSpeechRecognitionModule: {
+    start: jest.fn().mockResolvedValue(undefined),
+    stop:  jest.fn(),
+    requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  },
+  useSpeechRecognitionEvent: jest.fn(),
+}));
+
 // Mock expo-blur — BlurView is a native view that can't render in Jest
 jest.mock('expo-blur', () => {
   const { View } = require('react-native');
@@ -119,6 +130,12 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: (_fn: () => any) => ({}),
     withTiming: (value: any) => value,
     withSpring: (value: any) => value,
+    // Phase 7: RecordButton uses these additional Reanimated APIs
+    withRepeat: (value: any) => value,
+    withSequence: (...args: any[]) => args[args.length - 1],
+    cancelAnimation: jest.fn(),
+    runOnJS: (fn: any) => fn,
+    Easing: { inOut: (e: any) => e, ease: 0, linear: 0 },
   };
 });
 
@@ -397,4 +414,12 @@ describe('App — full render smoke test', () => {
     expect(screen.getByTestId('tab-notes')).toBeTruthy();
     expect(screen.getByTestId('tab-todo')).toBeTruthy();
   });
+});
+
+// Clear all pending timers after the full suite completes.
+// React Navigation's stack card animations schedule setTimeout callbacks that
+// can fire after Jest tears down the environment, causing a Node process crash
+// with "Cannot read properties of undefined (reading 'spring')".
+afterAll(() => {
+  jest.clearAllTimers();
 });

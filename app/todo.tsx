@@ -34,7 +34,7 @@
  * (called on every render, not memoised stale closures).
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,26 +43,28 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { TodoItem } from '../components/TodoItem';
-import { FAB } from '../components/FAB';
-import { RecordButton } from '../components/RecordButton';
-import { UserAvatar } from '../components/UserAvatar';
-import { TodoCreateSheet } from '../components/TodoCreateSheet';
-import { useTodoStore } from '../store/todoStore';
-import { scheduleReminder } from '../utils/notifications';
+import { TodoItem }              from '../components/TodoItem';
+import { FAB }                  from '../components/FAB';
+import { RecordButton }         from '../components/RecordButton';
+import { UserAvatar }           from '../components/UserAvatar';
+import { TodoCreateSheet }      from '../components/TodoCreateSheet';
+import { VoiceProcessingSheet } from '../components/VoiceProcessingSheet';
+import { useTodoStore }         from '../store/todoStore';
+import { useVoiceRecorder }     from '../hooks/useVoiceRecorder';
+import { scheduleReminder }     from '../utils/notifications';
 import { background, ink, chrome } from '../constants/colors';
-import { spacing } from '../constants/spacing';
+import { spacing }              from '../constants/spacing';
 import { fontSize, fontWeight } from '../constants/typography';
 import type { TodoStackScreenProps } from '../types/navigation';
-import type { Todo, TodoPriority } from '../types';
+import type { Todo, TodoPriority }   from '../types';
 
 type Props = TodoStackScreenProps<'TodoScreen'>;
 
 export default function TodoScreen({ navigation }: Props) {
   // ── Store ──
-  const addTodo = useTodoStore((s) => s.addTodo);
+  const addTodo        = useTodoStore((s) => s.addTodo);
   const toggleComplete = useTodoStore((s) => s.toggleComplete);
-  const deleteTodo = useTodoStore((s) => s.deleteTodo);
+  const deleteTodo     = useTodoStore((s) => s.deleteTodo);
 
   // Subscribe to the raw todos array — Zustand returns the same array
   // reference until a mutation creates a new one, so useSyncExternalStore
@@ -87,8 +89,50 @@ export default function TodoScreen({ navigation }: Props) {
       return bTime - aTime; // most recently completed first
     });
 
+  // ── Voice recorder ──────────────────────────────────────────────────────
+  const {
+    state: voiceState,
+    result: voiceResult,
+    startRecording,
+    stopRecording,
+    reset: resetVoice,
+  } = useVoiceRecorder();
+
   // ── Bottom sheet visibility ──
-  const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [showCreateSheet, setShowCreateSheet]   = useState(false);
+  const [showVoiceSheet, setShowVoiceSheet]     = useState(false);
+  const [lastVoiceTodoId, setLastVoiceTodoId]   = useState<string | null>(null);
+  const [sheetResult, setSheetResult]           = useState<typeof voiceResult>(null);
+
+  // ── Voice result handler ─────────────────────────────────────────────────
+  // Todo screen always creates a todo, regardless of Gemini's routing decision.
+  useEffect(() => {
+    if (!voiceResult) return;
+
+    const todo = addTodo({
+      title:    voiceResult.title,
+      priority: voiceResult.priority ?? 'medium',
+      summary:  voiceResult.summary,
+    });
+    setLastVoiceTodoId(todo.id);
+    setSheetResult(voiceResult);
+    setShowVoiceSheet(true);
+    resetVoice();
+    // DEBUG: console.debug('[todo] voice todo saved:', todo.id, voiceResult.title);
+  }, [voiceResult]);
+
+  const handleVoiceUndo = () => {
+    if (lastVoiceTodoId) deleteTodo(lastVoiceTodoId);
+    setShowVoiceSheet(false);
+    setLastVoiceTodoId(null);
+    setSheetResult(null);
+  };
+
+  const handleVoiceDismiss = () => {
+    setShowVoiceSheet(false);
+    setLastVoiceTodoId(null);
+    setSheetResult(null);
+  };
 
   // ── Derived counts for the "X of Y remaining" subtitle ──
   const totalCount = activeTodos.length + completedTodos.length;
@@ -199,7 +243,12 @@ export default function TodoScreen({ navigation }: Props) {
           testID="todo-fab"
           onPress={() => setShowCreateSheet(true)}
         />
-        <RecordButton testID="todo-record-button" />
+        <RecordButton
+          testID="todo-record-button"
+          state={voiceState}
+          onPressIn={startRecording}
+          onPressOut={stopRecording}
+        />
       </View>
 
       {/* ── Create todo sheet ── */}
@@ -207,6 +256,14 @@ export default function TodoScreen({ navigation }: Props) {
         visible={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
         onSave={handleSave}
+      />
+
+      {/* ── Voice confirmation sheet ── */}
+      <VoiceProcessingSheet
+        visible={showVoiceSheet}
+        result={sheetResult}
+        onDismiss={handleVoiceDismiss}
+        onUndo={handleVoiceUndo}
       />
     </SafeAreaView>
   );

@@ -224,6 +224,17 @@ export default function NoteDetailScreen({ route, navigation }: Props) {
           scrollEnabled={false}
           maxLength={10000}
         />
+
+        {/* ── AI Summary (voice notes only) ── */}
+        {/* Only shown when summary is non-null — manual notes always have null. */}
+        {note.summary ? (
+          <View style={styles.summaryCard} testID="note-detail-summary-card">
+            <Text style={styles.summaryLabel}>AI SUMMARY</Text>
+            <Text style={styles.summaryText} testID="note-detail-summary-text">
+              {note.summary}
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -303,5 +314,31 @@ const styles = StyleSheet.create({
     padding: 0,
     lineHeight: 24,
     minHeight: 200,
+  },
+
+  // ── AI summary card (voice notes only) ──────────────────────────────────
+
+  summaryCard: {
+    marginTop: spacing.xl,
+    padding: spacing.md,
+    backgroundColor: 'rgba(240, 180, 41, 0.10)',
+    borderRadius: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: '#E8B820',
+  },
+
+  summaryLabel: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    color: '#8B6914',
+    letterSpacing: 0.6,
+    marginBottom: spacing.xs,
+  },
+
+  summaryText: {
+    fontSize: fontSize.sm,
+    color: ink.secondary,
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
 });

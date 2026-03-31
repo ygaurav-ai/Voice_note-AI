@@ -46,3 +46,4 @@ yarn-error.*
 /ios/*.xcworkspace
 /ios/Thoughts.xcodeproj/xcuserdata/
 /ios/Thoughts.xcodeproj/project.xcworkspace/xcuserdata/
+.env

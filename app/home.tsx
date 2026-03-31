@@ -48,20 +48,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NoteCard }        from '../components/NoteCard';
-import { TodoItem }        from '../components/TodoItem';
-import { FAB }             from '../components/FAB';
-import { RecordButton }    from '../components/RecordButton';
-import { UserAvatar }      from '../components/UserAvatar';
-import { NoteCreateSheet } from '../components/NoteCreateSheet';
-import { useNotesStore }   from '../store/notesStore';
-import { useTodoStore }    from '../store/todoStore';
-import { background, ink } from '../constants/colors';
-import { spacing, radius } from '../constants/spacing';
-import { fontSize, fontWeight } from '../constants/typography';
-import { formatHeaderDate } from '../utils/date';
+import { NoteCard }               from '../components/NoteCard';
+import { TodoItem }               from '../components/TodoItem';
+import { FAB }                    from '../components/FAB';
+import { RecordButton }           from '../components/RecordButton';
+import { UserAvatar }             from '../components/UserAvatar';
+import { NoteCreateSheet }        from '../components/NoteCreateSheet';
+import { VoiceProcessingSheet }   from '../components/VoiceProcessingSheet';
+import { useNotesStore }          from '../store/notesStore';
+import { useTodoStore }           from '../store/todoStore';
+import { useVoiceRecorder }       from '../hooks/useVoiceRecorder';
+import { background, ink }        from '../constants/colors';
+import { spacing, radius }        from '../constants/spacing';
+import { fontSize, fontWeight }   from '../constants/typography';
+import { formatHeaderDate }       from '../utils/date';
 import type { HomeStackScreenProps } from '../types/navigation';
-import type { Note, NoteTag, Todo } from '../types';
+import type { Note, NoteTag, Todo }  from '../types';
 
 type Props = HomeStackScreenProps<'HomeScreen'>;
 
@@ -319,14 +321,33 @@ export default function HomeScreen({ navigation }: Props) {
   // invalidation. toggleComplete is the single action used in this screen.
   const allTodos       = useTodoStore((s) => s.todos);
   const toggleComplete = useTodoStore((s) => s.toggleComplete);
+  const addTodo        = useTodoStore((s) => s.addTodo);
+  const deleteTodo     = useTodoStore((s) => s.deleteTodo);
 
   // notes array (newest-first from the store) and addNote for the create sheet
-  const allNotes = useNotesStore((s) => s.notes);
-  const addNote  = useNotesStore((s) => s.addNote);
+  const allNotes   = useNotesStore((s) => s.notes);
+  const addNote    = useNotesStore((s) => s.addNote);
+  const deleteNote = useNotesStore((s) => s.deleteNote);
+
+  // ── Voice recorder hook ──────────────────────────────────────────────────
+  const {
+    state: voiceState,
+    result: voiceResult,
+    startRecording,
+    stopRecording,
+    reset: resetVoice,
+  } = useVoiceRecorder();
 
   // ── Local UI state ────────────────────────────────────────────────────────
 
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [showVoiceSheet, setShowVoiceSheet]   = useState(false);
+
+  // ID and type of the most recently voice-created item — needed for undo
+  const [lastVoiceItemId,   setLastVoiceItemId]   = useState<string | null>(null);
+  const [lastVoiceItemType, setLastVoiceItemType] = useState<'note' | 'todo' | null>(null);
+  // Snapshot of the voice result for the sheet to display (voiceResult is reset after save)
+  const [sheetResult, setSheetResult] = useState<typeof voiceResult>(null);
 
   // Tracks which recent note card is visible for the dot indicator
   const [activeNoteIndex, setActiveNoteIndex] = useState(0);
@@ -378,6 +399,54 @@ export default function HomeScreen({ navigation }: Props) {
   // switch sibling tabs without leaving the stack hierarchy.
   const handleSeeAllNotes = () => navigation.getParent()?.navigate('Notes');
   const handleSeeAllTodos = () => navigation.getParent()?.navigate('Todo');
+
+  // ── Voice result handler ─────────────────────────────────────────────────
+  // When Gemini finishes processing, save immediately and show confirmation.
+  useEffect(() => {
+    if (!voiceResult) return;
+
+    if (voiceResult.destination === 'note') {
+      const note = addNote({
+        title:   voiceResult.title,
+        body:    voiceResult.body ?? '',
+        tag:     voiceResult.tag ?? 'ideas',
+        summary: voiceResult.summary,
+      });
+      setLastVoiceItemId(note.id);
+      setLastVoiceItemType('note');
+    } else {
+      const todo = addTodo({
+        title:    voiceResult.title,
+        priority: voiceResult.priority ?? 'medium',
+        summary:  voiceResult.summary,
+      });
+      setLastVoiceItemId(todo.id);
+      setLastVoiceItemType('todo');
+    }
+
+    setSheetResult(voiceResult); // snapshot before reset so sheet can display title/summary
+    setShowVoiceSheet(true);
+    resetVoice();
+    // DEBUG: console.debug('[home] voice item saved:', voiceResult.destination, voiceResult.title);
+  }, [voiceResult]);
+
+  // Undo: delete the just-created item and close the sheet
+  const handleVoiceUndo = () => {
+    if (lastVoiceItemType === 'note' && lastVoiceItemId) deleteNote(lastVoiceItemId);
+    if (lastVoiceItemType === 'todo' && lastVoiceItemId) deleteTodo(lastVoiceItemId);
+    setShowVoiceSheet(false);
+    setLastVoiceItemId(null);
+    setLastVoiceItemType(null);
+    setSheetResult(null);
+    // DEBUG: console.debug('[home] voice item undone:', lastVoiceItemId);
+  };
+
+  const handleVoiceDismiss = () => {
+    setShowVoiceSheet(false);
+    setLastVoiceItemId(null);
+    setLastVoiceItemType(null);
+    setSheetResult(null);
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -498,7 +567,12 @@ export default function HomeScreen({ navigation }: Props) {
           testID="home-fab"
           onPress={() => setShowCreateSheet(true)}
         />
-        <RecordButton testID="home-record-button" />
+        <RecordButton
+          testID="home-record-button"
+          state={voiceState}
+          onPressIn={startRecording}
+          onPressOut={stopRecording}
+        />
       </View>
 
       {/* ── Create note bottom sheet ── */}
@@ -506,6 +580,15 @@ export default function HomeScreen({ navigation }: Props) {
         visible={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
         onSave={handleSaveNote}
+      />
+
+      {/* ── Voice confirmation sheet ── */}
+      {/* Shown after voice recording is processed and saved */}
+      <VoiceProcessingSheet
+        visible={showVoiceSheet}
+        result={sheetResult}
+        onDismiss={handleVoiceDismiss}
+        onUndo={handleVoiceUndo}
       />
 
     </SafeAreaView>

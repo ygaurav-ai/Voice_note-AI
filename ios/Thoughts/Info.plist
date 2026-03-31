@@ -44,6 +44,10 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Thoughts needs microphone access to record voice notes.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Thoughts uses speech recognition to transcribe your voice notes.</string>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>

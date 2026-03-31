@@ -7,6 +7,12 @@
  * Nothing else in the codebase should define its own Note or Todo shape —
  * always import from this file.
  *
+ * Phase 7 additions:
+ *   - summary: string | null added to both Note and Todo
+ *     AI-generated from voice notes; null for manually created items.
+ *     Existing MMKV data without this field is treated as null on read —
+ *     no migration or data wipe needed.
+ *
  * DEBUG TIP: If a component receives unexpected undefined fields, check that
  * the object was created with createNote() / createTodo() factory helpers
  * below, which guarantee all required fields are present.
@@ -28,6 +34,12 @@ export interface Note {
   body: string;
   /** Category tag — controls card tint colour and filter chip behaviour */
   tag: NoteTag;
+  /**
+   * AI-generated 1–2 sentence summary from voice note processing.
+   * null for manually created notes — never overwritten by the editor.
+   * Existing items stored in MMKV without this field are treated as null.
+   */
+  summary: string | null;
   /** ISO string of when the note was originally created */
   createdAt: string;
   /** ISO string of the last time the note content was saved */
@@ -63,6 +75,12 @@ export interface Todo {
    * null when no notification is currently scheduled.
    */
   notificationId: string | null;
+  /**
+   * AI-generated 1–2 sentence summary from voice note processing.
+   * null for manually created todos.
+   * Existing items stored in MMKV without this field are treated as null.
+   */
+  summary: string | null;
   /** ISO string of when this todo was created */
   createdAt: string;
 }
@@ -75,12 +93,16 @@ export interface Todo {
 /**
  * createNote — builds a new Note object with safe defaults.
  * Caller must supply title, body, and tag; everything else is auto-filled.
+ * summary defaults to null for manually created notes.
  *
  * Usage:
  *   const note = createNote({ title: 'Meeting notes', body: '', tag: 'work' });
  */
 export function createNote(
-  partial: Pick<Note, 'title' | 'body' | 'tag'> & { id: string }
+  partial: Pick<Note, 'title' | 'body' | 'tag'> & {
+    id: string;
+    summary?: string | null;
+  }
 ): Note {
   const now = new Date().toISOString();
   return {
@@ -88,6 +110,7 @@ export function createNote(
     title: partial.title,
     body: partial.body,
     tag: partial.tag,
+    summary: partial.summary ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -96,6 +119,7 @@ export function createNote(
 /**
  * createTodo — builds a new Todo object with safe defaults.
  * Caller must supply title and priority; everything else is auto-filled.
+ * summary defaults to null for manually created todos.
  *
  * Usage:
  *   const todo = createTodo({ title: 'Buy groceries', priority: 'low', id: uuid });
@@ -108,6 +132,7 @@ export function createTodo(
     completedAt?: string | null;
     reminderSet?: boolean;
     notificationId?: string | null;
+    summary?: string | null;
   }
 ): Todo {
   const now = new Date().toISOString();
@@ -120,6 +145,7 @@ export function createTodo(
     completedAt: partial.completedAt ?? null,
     reminderSet: partial.reminderSet ?? false,
     notificationId: partial.notificationId ?? null,
+    summary: partial.summary ?? null,
     createdAt: now,
   };
 }

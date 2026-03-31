@@ -58,9 +58,10 @@ interface NotesState {
 
   /**
    * addNote — creates a new note and prepends it to the list.
-   * Returns the newly created Note so callers can navigate to it if needed.
+   * Returns the newly created Note so callers can reference its id.
+   * summary: optional AI-generated summary; null for manually created notes.
    */
-  addNote: (data: { title: string; body: string; tag: NoteTag }) => Note;
+  addNote: (data: { title: string; body: string; tag: NoteTag; summary?: string | null }) => Note;
 
   /**
    * updateNote — applies partial changes to a note and refreshes updatedAt.
@@ -129,8 +130,11 @@ export const useNotesStore = create<NotesState>()((set, get) => ({
 
   // ---- Actions ----
 
-  addNote: ({ title, body, tag }) => {
-    const newNote = createNote({ id: generateId(), title, body, tag });
+  addNote: ({ title, body, tag, summary }) => {
+    // summary is persisted on the note so voice-created items carry their AI summary.
+    // Existing MMKV data without summary will deserialise as undefined — the ?? null
+    // guard in createNote converts that to null safely.
+    const newNote = createNote({ id: generateId(), title, body, tag, summary });
 
     // Prepend so the new note is first (newest-first order)
     const notes = [newNote, ...get().notes];

@@ -31,7 +31,7 @@
  * numColumns={2} and that NoteGridCard has flex: 1 in its style.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,18 +43,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NoteGridCard } from '../components/NoteGridCard';
-import { TagChip } from '../components/TagChip';
-import { FAB } from '../components/FAB';
-import { RecordButton } from '../components/RecordButton';
-import { UserAvatar } from '../components/UserAvatar';
-import { NoteCreateSheet } from '../components/NoteCreateSheet';
-import { useNotesStore } from '../store/notesStore';
+import { NoteGridCard }          from '../components/NoteGridCard';
+import { TagChip }               from '../components/TagChip';
+import { FAB }                   from '../components/FAB';
+import { RecordButton }          from '../components/RecordButton';
+import { UserAvatar }            from '../components/UserAvatar';
+import { NoteCreateSheet }       from '../components/NoteCreateSheet';
+import { VoiceProcessingSheet }  from '../components/VoiceProcessingSheet';
+import { useNotesStore }         from '../store/notesStore';
+import { useVoiceRecorder }      from '../hooks/useVoiceRecorder';
 import { background, ink, glass } from '../constants/colors';
-import { spacing, radius } from '../constants/spacing';
-import { fontSize, fontWeight } from '../constants/typography';
+import { spacing, radius }       from '../constants/spacing';
+import { fontSize, fontWeight }  from '../constants/typography';
 import type { NotesStackScreenProps } from '../types/navigation';
-import type { Note, NoteTag } from '../types';
+import type { Note, NoteTag }    from '../types';
 
 type Props = NotesStackScreenProps<'NotesScreen'>;
 
@@ -79,8 +81,55 @@ export default function NotesScreen({ navigation }: Props) {
   // Derive filtered notes (computed on every render when store changes)
   const filteredNotes = getFilteredNotes();
 
+  const deleteNote = useNotesStore((s) => s.deleteNote);
+
+  // ── Voice recorder ───────────────────────────────────────────────────────
+  const {
+    state: voiceState,
+    result: voiceResult,
+    startRecording,
+    stopRecording,
+    reset: resetVoice,
+  } = useVoiceRecorder();
+
   // Bottom sheet visibility
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [showVoiceSheet, setShowVoiceSheet]   = useState(false);
+  const [lastVoiceNoteId, setLastVoiceNoteId] = useState<string | null>(null);
+  const [sheetResult, setSheetResult]         = useState<typeof voiceResult>(null);
+
+  // ── Voice result handler ─────────────────────────────────────────────────
+  // Notes screen always creates a note, regardless of Gemini's routing decision.
+  // If Gemini routes as 'todo', we still save it as a note here (context is the
+  // Notes screen — the user likely expects a note to be created from this screen).
+  useEffect(() => {
+    if (!voiceResult) return;
+
+    const note = addNote({
+      title:   voiceResult.title,
+      body:    voiceResult.body ?? voiceResult.transcript,
+      tag:     voiceResult.tag ?? 'ideas',
+      summary: voiceResult.summary,
+    });
+    setLastVoiceNoteId(note.id);
+    setSheetResult(voiceResult);
+    setShowVoiceSheet(true);
+    resetVoice();
+    // DEBUG: console.debug('[notes] voice note saved:', note.id, voiceResult.title);
+  }, [voiceResult]);
+
+  const handleVoiceUndo = () => {
+    if (lastVoiceNoteId) deleteNote(lastVoiceNoteId);
+    setShowVoiceSheet(false);
+    setLastVoiceNoteId(null);
+    setSheetResult(null);
+  };
+
+  const handleVoiceDismiss = () => {
+    setShowVoiceSheet(false);
+    setLastVoiceNoteId(null);
+    setSheetResult(null);
+  };
 
   // Navigate to Note Detail when a grid card is tapped
   const handleCardPress = (note: Note) => {
@@ -177,7 +226,12 @@ export default function NotesScreen({ navigation }: Props) {
           testID="notes-fab"
           onPress={() => setShowCreateSheet(true)}
         />
-        <RecordButton testID="notes-record-button" />
+        <RecordButton
+          testID="notes-record-button"
+          state={voiceState}
+          onPressIn={startRecording}
+          onPressOut={stopRecording}
+        />
       </View>
 
       {/* ── Create note sheet ── */}
@@ -185,6 +239,14 @@ export default function NotesScreen({ navigation }: Props) {
         visible={showCreateSheet}
         onClose={() => setShowCreateSheet(false)}
         onSave={handleSaveNote}
+      />
+
+      {/* ── Voice confirmation sheet ── */}
+      <VoiceProcessingSheet
+        visible={showVoiceSheet}
+        result={sheetResult}
+        onDismiss={handleVoiceDismiss}
+        onUndo={handleVoiceUndo}
       />
     </SafeAreaView>
   );

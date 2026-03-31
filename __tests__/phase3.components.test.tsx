@@ -38,6 +38,16 @@ jest.mock('react-native-mmkv', () => ({
   }),
 }));
 
+// expo-speech-recognition — needed by useVoiceRecorder imported by screens (Phase 7)
+jest.mock('expo-speech-recognition', () => ({
+  ExpoSpeechRecognitionModule: {
+    start: jest.fn().mockResolvedValue(undefined),
+    stop:  jest.fn(),
+    requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  },
+  useSpeechRecognitionEvent: jest.fn(),
+}));
+
 // expo-blur — BlurView is a native view that cannot render in Jest
 jest.mock('expo-blur', () => {
   const { View } = require('react-native');
@@ -68,11 +78,18 @@ jest.mock('react-native-reanimated', () => {
   const AnimatedView = (props: any) => React.createElement(View, props);
   return {
     __esModule: true,
-    default: { View: AnimatedView },
+    default: { View: AnimatedView, createAnimatedComponent: (c: any) => c },
+    createAnimatedComponent: (c: any) => c,
     useSharedValue: (initial: any) => ({ value: initial }),
     useAnimatedStyle: (_fn: () => any) => ({}),
     withTiming: (value: any) => value,
     withSpring: (value: any) => value,
+    // Phase 7: RecordButton uses these additional Reanimated APIs
+    withRepeat: (value: any) => value,
+    withSequence: (...args: any[]) => args[args.length - 1],
+    cancelAnimation: jest.fn(),
+    runOnJS: (fn: any) => fn,
+    Easing: { inOut: (e: any) => e, ease: 0, linear: 0 },
   };
 });
 

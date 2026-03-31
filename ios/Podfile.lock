@@ -88,6 +88,8 @@ PODS:
     - ReactCommon
   - ExpoNotifications (55.0.13):
     - ExpoModulesCore
+  - ExpoSpeechRecognition (3.1.2):
+    - ExpoModulesCore
   - fast_float (8.0.0)
   - FBLazyVector (0.83.2)
   - fmt (11.0.2)
@@ -3028,6 +3030,7 @@ DEPENDENCIES:
   - ExpoModulesCore (from `../node_modules/expo-modules-core`)
   - ExpoModulesJSI (from `../node_modules/expo-modules-core`)
   - ExpoNotifications (from `../node_modules/expo-notifications/ios`)
+  - ExpoSpeechRecognition (from `../node_modules/expo-speech-recognition/ios`)
   - fast_float (from `../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - fmt (from `../node_modules/react-native/third-party-podspecs/fmt.podspec`)
@@ -3150,6 +3153,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-modules-core"
   ExpoNotifications:
     :path: "../node_modules/expo-notifications/ios"
+  ExpoSpeechRecognition:
+    :path: "../node_modules/expo-speech-recognition/ios"
   fast_float:
     :podspec: "../node_modules/react-native/third-party-podspecs/fast_float.podspec"
   FBLazyVector:
@@ -3334,6 +3339,7 @@ SPEC CHECKSUMS:
   ExpoModulesCore: 733d882367cd2725a6b48de516d9b2aa10f98a3f
   ExpoModulesJSI: 7345645083e98be9c33c10027601aff2e445ba72
   ExpoNotifications: 6936e06a76246e881fcf862ef8b31079d957e092
+  ExpoSpeechRecognition: 3e416e568451e62678e8085469bcaff557b0b2b9
   fast_float: b32c788ed9c6a8c584d114d0047beda9664e7cc6
   FBLazyVector: f1200e6ef6cf24885501668bdbb9eff4cf48843f
   fmt: a40bb5bd0294ea969aaaba240a927bd33d878cdd

@@ -62,6 +62,8 @@ interface TodoState {
     dueDate?: string | null;
     reminderSet?: boolean;
     notificationId?: string | null;
+    /** AI-generated summary from voice note processing; null for manual todos. */
+    summary?: string | null;
   }) => Todo;
 
   /**
@@ -112,7 +114,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
 
   // ---- Actions ----
 
-  addTodo: ({ title, priority, dueDate, reminderSet, notificationId }) => {
+  addTodo: ({ title, priority, dueDate, reminderSet, notificationId, summary }) => {
     const newTodo = createTodo({
       id: generateId(),
       title,
@@ -120,6 +122,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
       dueDate: dueDate ?? null,
       reminderSet: reminderSet ?? false,
       notificationId: notificationId ?? null,
+      summary: summary ?? null,
     });
 
     // Prepend so the new todo is first in the active list

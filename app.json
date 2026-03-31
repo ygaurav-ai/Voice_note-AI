@@ -13,7 +13,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gj.thoughts"
+      "bundleIdentifier": "com.gj.thoughts",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Thoughts uses speech recognition to transcribe your voice notes.",
+        "NSMicrophoneUsageDescription": "Thoughts needs microphone access to record voice notes."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,10 +26,22 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Thoughts needs microphone access to record voice notes.",
+          "speechRecognitionPermission": "Thoughts uses speech recognition to transcribe your voice notes."
+        }
+      ]
+    ]
   }
 }
